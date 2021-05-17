@@ -7,7 +7,6 @@ using System.Linq;
 using System.IO;
 using System.Text;
 using EasyModbus;
-
 using System.Threading;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -25,11 +24,9 @@ namespace Thread_Inspection
         }
         private static readonly log4net.ILog log =
         log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-       
-        VideoCapture capture = new VideoCapture(1, VideoCaptureAPIs.DSHOW);
+        VideoCapture capture = new VideoCapture();
         ModbusClient plcmodule;
         Stopwatch sw = new Stopwatch();
-        Stopwatch sw1 = new Stopwatch();
         int count = 0;
         bool draw = false;
         Rectangle rect;
@@ -41,15 +38,12 @@ namespace Thread_Inspection
         Mat temp = new Mat();
 
         OpenCvSharp.Point matchLoc, res_loc;
-        double minVal; double maxVal;
-        OpenCvSharp.Point minLoc, maxLoc;
         Mat temp_match = new Mat();
         Mat templete = new Mat();
         Mat resizeimg = new Mat();
        
 
         FileInfo[] files;
-        string foldername = DateTime.Now.ToString("yyyy-MM-dd");
         Mat Inputimg = new Mat();
         Mat outimg = new Mat();
         Mat crop = new Mat();
@@ -69,25 +63,9 @@ namespace Thread_Inspection
         {
             try
             {
-                //VideoCapture capture = new VideoCapture(0, VideoCaptureAPIs.DSHOW);
-                // capture.Settings = 1;
-                capture.AutoFocus=false;
-                //capture.Set(VideoCaptureProperties.AutoFocus, false);
-                //capture.Set(VideoCaptureProperties.Focus, 3);
-                capture.Focus = 35;
-              
-                capture.AutoExposure = 3;
-                capture.Exposure = -6;
-                capture.Gain = 20;//120
-                //capture.Brightness = 128;//1
-                capture.FrameWidth = 1920;
-                capture.FrameHeight = 1080;
-                //capture.Sharpness = 128;
-                //capture.Saturation = 129;
-                //capture.BackLight = 1;
                 
                 DateTime currentdate = DateTime.Now.Date;
-                DateTime Expirydate = new DateTime(2021, 04, 01) ;
+                DateTime Expirydate = new DateTime(2021, 04, 01, 01, 04, 00); ;
                 int res = currentdate.CompareTo(Expirydate);
                 if (res == 1)
                 {
@@ -99,23 +77,19 @@ namespace Thread_Inspection
                     MessageBox.Show("1 day to expire");
                 }
                 datetime.Enabled = true;
-                //sw.Start();
-                //capture.Open(1);
-                //sw.Stop();
+                sw.Start();
+                capture.Open(0);
+                sw.Stop();
                 framecount = 0; 
                 loadsettings();
-                //imagecount = 0;
-                if (!Directory.Exists(@"D:\VISION RESULTS\"))//creating folder  folder for saving imager
-                {
-                    Directory.CreateDirectory(@"D:\VISION RESULTS\");
-                  
-                }
-                if (!Directory.Exists(@"D:\VISION RESULTS\" + DateTime.Now.ToString("dd/MM/yyyy")))
-                {
-                    Directory.CreateDirectory(@"D:\VISION RESULTS\" + DateTime.Now.ToString("dd/MM/yyyy"));
-                    imagecount = 0;
-                }
                 
+                //elapsingtime.Text = sw.ElapsedMilliseconds.ToString();
+                savepath = string.Format("log result.csv");
+                if (!File.Exists(savepath))
+                {
+                    string d = "S/NO" + comma+ DateTime.Now.ToShortDateString() +comma + "THREAD RESULT" + comma + "HOLE RESULT" + comma + "FINAL RESULT" + Environment.NewLine;
+                    File.WriteAllText(savepath, d);
+                }
                 if (capture.IsOpened())
                 {
                     camstatus.Text = "Camera connected";
@@ -140,8 +114,8 @@ namespace Thread_Inspection
                     plcstatus.Text = "PLC is connected";
                     plcstatus.ForeColor = Color.Green;
                 }
-
-                //capture.Release(); //stop reading an image,erase parametrs(release)
+               
+                capture.Release(); //stop reading an image,erase parametrs(release)
             }
             catch (Exception Ex)
             {
@@ -159,34 +133,26 @@ namespace Thread_Inspection
         {
             try
             {
-                //DialogResult dg = MessageBox.Show(" Close the Application", "Conformatiom", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
-                //if (dg == DialogResult.OK)
+              //  DialogResult dg = MessageBox.Show(" Close the Application", "Conformatiom", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+               // if (dg == DialogResult.OK)
                 {
+                    plcmodule.WriteSingleCoil(1280, false);
                     plcmodule.WriteSingleCoil(1283, false);
-                    plcmodule.WriteSingleCoil(1284, false);
-                    //capture.Release();
-                    FileStorage fs = new FileStorage("count.yml", FileStorage.Modes.Write);
+                    capture.Dispose();
+                    FileStorage fs = new FileStorage("count.yml", FileStorage.Mode.Write);
                     fs.Write("imagecount", imagecount);
                     fs.Write("sno", sno);
-                    fs.Write("Thread Passcount", Thread_Passcount);
-                    fs.Write("Thread Failcount", Thread_Failcount);
-                    fs.Write("Hole Passcount", Hole_Passcount);
-                    fs.Write("Hole Failcount", Hole_Failcount);
-                    fs.Write("Total Passcount", Total_passcount);
-                    fs.Write("Total Failcount", Total_failcount);
-                    fs.Write("TotalCount", total_count);
-
                     e.Cancel = false;
 
                 }
-                //else if (dg == DialogResult.Cancel)
-                //{
-                //    e.Cancel = true;
-                //}
+               // else if (dg == DialogResult.Cancel)
+                {
+                  //  e.Cancel = true;
+                }
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
         }
@@ -194,42 +160,38 @@ namespace Thread_Inspection
         private void start_btn_Click(object sender, EventArgs e)
         {
             try
-            { 
-              imagegrabtimer.Enabled = true;
+            {
+
+                imagegrabtimer.Enabled = true;
+                sw.Start();
                 if (!capture.IsOpened())
                 {
-                    VideoCapture capture = new VideoCapture(0, VideoCaptureAPIs.DSHOW);
-                    //capture.AutoFocus = false;
-                    ////capture.Set(VideoCaptureProperties.AutoFocus, false);
-                    ////capture.Set(VideoCaptureProperties.Focus, 3);
-                    //capture.Focus = 35;
-
-                    //capture.AutoExposure = 3;
-                    //capture.Exposure = -6;
-                    //capture.Gain = 20;//120
-                    //                  //capture.Brightness = 128;//1
-                    //capture.FrameWidth = 1920;
-                    //capture.FrameHeight = 1080;
+                    capture.Open(0);
                 }
-                ////while (true)
-                //{
-                //    Thread.Sleep(500);
-                //    for(int i=0;i<2;i++)
-                //    {
-                //        capture.Read(Inputimg);
-                //    }
-                //    //capture.Read(Inputimg);
-                //    img_disp.Image = Inputimg.ToBitmap();
-                //    Cv2.CvtColor(Inputimg, outimg, ColorConversionCodes.BGR2GRAY);
-                //    Cv2.ImWrite(@"C:\Users\admin\Desktop\Thread_Inspection\New folder\" + num + ".bmp",outimg);
-                //    num++;
-                //    Cv2.WaitKey(1);
-                //}
+                Thread.Sleep(2000);
 
+                //capture.Focus = 14;
+                //Thread.Sleep(1000);
+                //capture.FrameWidth = 1920;
+                //capture.FrameHeight = 1080;
+                ////for (int i = 0; i < 5; i++)
+                ////{
+                ////    if (capture.IsOpened())
+                ////    {
+                //capture.Read(Inputimg);
+                ////    }
+                ////}
+                //framecount++;
+
+                //Cv2.CvtColor(Inputimg, outimg, ColorConversionCodes.BGR2GRAY);
+                //Cv2.NamedWindow("out", WindowMode.Normal);
+                //Cv2.ImShow("out", Inputimg);
+                //Cv2.ImWrite("original" + ".bmp", outimg);
+                //Process_image();
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
 
@@ -238,9 +200,13 @@ namespace Thread_Inspection
         {
             try
             {
+                plcmodule.WriteSingleCoil(1280, false);
+                plcmodule.WriteSingleCoil(1283, false);
+                if (capture.IsOpened())
+                {
+                    capture.Release();
+                }
                 imagegrabtimer.Enabled = false;
-                //capture.Release();
-                //capture.Dispose();
             }
             catch(Exception ex)
             {
@@ -253,24 +219,20 @@ namespace Thread_Inspection
         {
             try
             {
-                FileStorage fs = new FileStorage(@"temp.yml", FileStorage.Modes.Read);
-               
+                FileStorage fs = new FileStorage(@"temp.yml", FileStorage.Mode.Read);
+                tx = fs["tx"].ReadInt();
+                ty = fs["ty"].ReadInt();
+                tw = fs["tw"].ReadInt();
+                th = fs["th"].ReadInt();
                 temp_match = fs["temp_match"].ReadMat();
                 yml_path.Text = "temp.yml".ToString();
-                FileStorage fs1 = new FileStorage(@"count.yml", FileStorage.Modes.Read);
+                FileStorage fs1 = new FileStorage(@"count.yml", FileStorage.Mode.Read);
                 imagecount = fs1["imagecount"].ReadInt();
                 sno = fs1["sno"].ReadInt();
-                Thread_Passcount = fs1["Thread Passcount"].ReadInt();
-                Thread_Failcount = fs1["Thread Failcount"].ReadInt();
-                Hole_Passcount = fs1["Hole Passcount"].ReadInt();
-                Hole_Failcount = fs1["Hole Failcount"].ReadInt();
-                Total_passcount = fs1["Total Passcount"].ReadInt();
-                Total_failcount = fs1["Total Failcount"].ReadInt();
-                total_count = fs1["TotalCount"].ReadInt();
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
 
@@ -279,7 +241,6 @@ namespace Thread_Inspection
         {
             try
             {
-                img_disp.Image = null;
                 openFileDialog1.ShowDialog();
                 if (openFileDialog1.FileName == "")
                 {
@@ -288,7 +249,8 @@ namespace Thread_Inspection
                 outimg = new Mat(openFileDialog1.FileName, ImreadModes.Grayscale);
                 img_path.Text = openFileDialog1.FileName;
                 img_disp.Image = outimg.ToBitmap();
-              
+                plcmodule.WriteSingleCoil(1280, false);
+                plcmodule.WriteSingleCoil(1281, false);
 
             }
             catch (Exception Ex)
@@ -312,13 +274,13 @@ namespace Thread_Inspection
                     MessageBox.Show("file not selected", "error", MessageBoxButtons.OKCancel, MessageBoxIcon.Error);
                 }
                 yml_path.Text = saveFileDialog1.FileName;
-                FileStorage fs = new FileStorage(yml_path.Text, FileStorage.Modes.Write);
+                FileStorage fs = new FileStorage(yml_path.Text, FileStorage.Mode.Write);
                 fs.Write("tx", tx);
                 fs.Write("ty", ty);
                 fs.Write("tw", tw);
                 fs.Write("th", th);
                 fs.Write("temp_match", temp_match);
-
+               
                 fs.Write("modified", DateTime.Now.ToString());
                 fs.Release();
             }
@@ -341,7 +303,7 @@ namespace Thread_Inspection
                 }
 
                 yml_path.Text = openFileDialog2.FileName;
-                FileStorage fs = new FileStorage(yml_path.Text, FileStorage.Modes.Read);
+                FileStorage fs = new FileStorage(yml_path.Text, FileStorage.Mode.Read);
                 tx = fs["tx"].ReadInt();
                 ty = fs["ty"].ReadInt();
                 tw = fs["tw"].ReadInt();
@@ -356,7 +318,7 @@ namespace Thread_Inspection
         }
         private void log_btn_Click(object sender, EventArgs e)
         {
-          
+            //folderBrowserDialog1.ShowDialog();
             imgsave = true;
         }
         private void adjust_btn_Click(object sender, EventArgs e)
@@ -406,9 +368,10 @@ namespace Thread_Inspection
                             temp = new Mat(crop, t);//205,72,725,968
                             temp.CopyTo(temp_match);
                             temp.CopyTo(templete);
-                          
+                            Cv2.NamedWindow("roi", WindowMode.Normal);
                             Cv2.ImShow("roi", temp);
-                            
+                            //pictureBox1.Image = temp.ToBitmap();
+                            //pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
                         }
 
                     }
@@ -476,27 +439,15 @@ namespace Thread_Inspection
         {
             try
             {
-                sw.Start();
                 crop_image(outimg);
-                if(Form2.reset==true)
-                {
-                    Thread_Passcount=0;
-                    Thread_Failcount = 0;
-                    Hole_Failcount = 0;
-                    Hole_Passcount = 0;
-                    Total_failcount = 0;
-                    Total_passcount = 0;
-                    total_count = 0;
-                    Form2.reset = false;
-                }
                
-                if ( threadcount >=4)
+                if ( /*pixelcount<800 &&*/ threadcount >=4)
                 {
                     Thread_result.Text = "THREAD PRESENT";
                     Thread_result.BackColor = Color.LimeGreen;
                     Thread_Passcount++;
-                    OpenCvSharp.Rect recttr = new OpenCvSharp.Rect(matchLoc.X, matchLoc.Y, 200,200);
-                    Cv2.Rectangle(finalimg, recttr, Scalar.LimeGreen, 3);
+                    OpenCvSharp.Rect thread_rect = new OpenCvSharp.Rect(415, 487, 110 + 65, 85 + 85);
+                    Cv2.Rectangle(finalimg, thread_rect, Scalar.LimeGreen, 5);
 
                 }
                 else
@@ -504,8 +455,8 @@ namespace Thread_Inspection
                     Thread_result.Text = "THREAD ABSENT";
                     Thread_result.BackColor = Color.Red;
                     Thread_Failcount++;
-                    OpenCvSharp.Rect recttr = new OpenCvSharp.Rect(matchLoc.X , matchLoc.Y , 200, 200);
-                    Cv2.Rectangle(finalimg, recttr, Scalar.Red, 3);
+                    OpenCvSharp.Rect thread_rect = new OpenCvSharp.Rect(415, 487, 110 + 65, 85 + 85);//415,487,110,85
+                    Cv2.Rectangle(finalimg, thread_rect, Scalar.Red, 5);
                 }
                 
                 if ((Holecount > 3))
@@ -523,7 +474,6 @@ namespace Thread_Inspection
                     Hole_Failcount++;
 
                 }
-                img_disp.Image = finalimg.ToBitmap();
                 if (Thread_result.Text == "THREAD PRESENT" && hole_result.Text == "4 HOLE PRESENT")
                 {
 
@@ -531,11 +481,7 @@ namespace Thread_Inspection
                     Final_result.BackColor = Color.Lime;
                     Total_passcount++;
                     total_count++;
-                    plcmodule.WriteSingleCoil(1283, true);
-                    Thread.Sleep(2000);
-                    plcmodule.WriteSingleCoil(1283, false);
-                    plcmodule.WriteSingleCoil(1284, false);
-
+                    plcmodule.WriteSingleCoil(1280, true);
                 }
                 else
                 {
@@ -543,39 +489,31 @@ namespace Thread_Inspection
                     Final_result.BackColor = Color.Red;
                     Total_failcount++;
                     total_count++;
-                    //string path = @"D:\VISION RESULTS" + "\\" + DateTime.Now.ToString("dd / MM / yyyy") + "\\";
-                    //Cv2.ImWrite(@"D:\VISION RESULTS"  + DateTime.Now.ToString("dd / MM / yyyy") + "\\" + imagecount.ToString()+".bmp",outimg);
-                    Cv2.ImWrite("D:\\VISION RESULTS\\" + DateTime.Now.ToString("dd/MM/yyyy" )+"\\" + imagecount.ToString() + ".bmp", outimg);
-
-                    imagecount++;
-                    plcmodule.WriteSingleCoil(1284, true);
-                    Thread.Sleep(2000);
-                    plcmodule.WriteSingleCoil(1284, false);
-                    plcmodule.WriteSingleCoil(1283, false);
-
+                    plcmodule.WriteSingleCoil(1280, true);
                 }
                 
-                //if (imgsave==true)
-                //{
-                //    if (Final_result.Text == "PASS")
-                //      Cv2.ImWrite(@"D:\log images(2.40)\good images\" + imagecount + ".bmp", outimg);
-                //    else
-                //      Cv2.ImWrite(@"D:\log images(2.40)\bad images\" + imagecount + ".bmp", outimg);
+                if (imgsave==true)
+                {
+                    if (Final_result.Text == "PASS")
+                      Cv2.ImWrite(@"D:\log images\good images\" + imagecount + ".bmp", outimg);
+                    else
+                      Cv2.ImWrite(@"D:\log images\bad images\" + imagecount + ".bmp", outimg);
 
-                //    imagecount++;
-                //}
+                    imagecount++;
+                }
                 
                 Form3.start = false;
-                
+                //appendtext = sno.ToString() + DateTime.Now.ToShortDateString() + comma + Thread_result.Text + comma + hole_result.Text + comma + Final_result.Text + Environment.NewLine;
+                //File.AppendAllText("log result.csv", appendtext);
+                //sno++;
+                img_disp.Image = finalimg.ToBitmap();
+
                 sw.Stop();
-                textBox1.Text = sw.ElapsedMilliseconds.ToString();
-                //Thread.Sleep(5000);
-                //Mat empty = Cv2.ImRead("empty1" + ".bmp");
-                //img_disp.Image = empty.ToBitmap();
+                elapsingtime.Text = sw.ElapsedMilliseconds.ToString();
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
         }
@@ -586,21 +524,21 @@ namespace Thread_Inspection
                   Mat copy = new Mat();
                   outimg.CopyTo(copy);
                   OpenCvSharp.Rect rect = new OpenCvSharp.Rect(500,0,1100,1080);
-                
+                 // Cv2.Rectangle(copy, rect, Scalar.Blue, 3);//500,0,1100,1080
                   crop = new Mat(outimg, rect);
                   crop.CopyTo(outputimg);
-                 
-                 // Cv2.ImWrite("crop" + ".bmp", crop);
+                  //Cv2.NamedWindow("crop", WindowMode.FreeRatio);
+                  //Cv2.ImShow("crop", crop);
+                  Cv2.ImWrite("crop" + ".bmp", crop);
                   if (outputimg.Channels() == 1)
                     Cv2.CvtColor(outputimg, outputimg, ColorConversionCodes.GRAY2BGR);
                   thread(crop);
-                  Holes1(crop);
-
+                //img_disp.Image = crop.ToBitmap();
 
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
 
@@ -611,67 +549,70 @@ namespace Thread_Inspection
             {
                 threadcount = 0;
                 Mat thread = new Mat();
-                Mat thread_copy = new Mat();
+                OpenCvSharp.Size kksize = new OpenCvSharp.Size(1, 1);
+                Mat element = Cv2.GetStructuringElement(MorphShapes.Cross, kksize);
+                Holes1(crop);
+                if (crop.Channels() > 1)
+                   Cv2.CvtColor(crop, crop, ColorConversionCodes.BGR2GRAY);
+                template_matching(crop, temp_match);
+                resizeimg.CopyTo(thread);
+                Cv2.NamedWindow("templete", WindowMode.FreeRatio);
+                Cv2.ImShow("templete", resizeimg);
+                if (thread.Channels() > 1)
+                  Cv2.CvtColor(thread, thread, ColorConversionCodes.BGR2GRAY);
+                OpenCvSharp.Rect thread_roi1 = new OpenCvSharp.Rect(0, 0, 20, 125);//0,0,20,125
+                Cv2.Rectangle(thread, thread_roi1, Scalar.Black, -1);
+                OpenCvSharp.Rect thread_roi2 = new OpenCvSharp.Rect(127, 0, 25, 125);//128,0,20,125
+                Cv2.Rectangle(thread, thread_roi2, Scalar.Black, -1);
+                OpenCvSharp.Rect thread_roi3 = new OpenCvSharp.Rect(0, 115, 140, 16);//0,113,130,13
+                Cv2.Rectangle(thread, thread_roi3, Scalar.Black, -1);
+                OpenCvSharp.Rect thread_roi4 = new OpenCvSharp.Rect(0, 0, 135, 25);//0,0,135,20
+                Cv2.Rectangle(thread, thread_roi4, Scalar.Black, -1);
+                OpenCvSharp.Rect thread_roi5 = new OpenCvSharp.Rect(48, 80, 33, 23);//50,80,30,23
+                Cv2.Rectangle(thread, thread_roi5, Scalar.Black, -1);
+                Cv2.NamedWindow("mask", WindowMode.FreeRatio);
+                Cv2.ImShow("mask", thread);
+                Cv2.Sobel(thread, thread, MatType.CV_8UC1, 0, 1, 1);
+                if (Form3.start5==true)
+                {
+                    Cv2.Threshold(thread, thread, Form3.thread_value, 255, ThresholdTypes.Otsu);
+                    Form3.start5 = false;
+                }
+                else
+                {
+                    Cv2.Threshold(thread, thread, 120, 255, ThresholdTypes.Otsu);
+                }
+               
+               
+                Cv2.NamedWindow("inrange", WindowMode.FreeRatio);
+                Cv2.ImShow("inrange", thread);
+                pixelcount = Cv2.CountNonZero(thread);
+               
                 OpenCvSharp.Point[][] contour1;
                 HierarchyIndex[] hier1;
                 OpenCvSharp.Rect rect3 = new OpenCvSharp.Rect();
-                OpenCvSharp.Size kksize = new OpenCvSharp.Size(1, 1);
-                Mat element = Cv2.GetStructuringElement(MorphShapes.Cross, kksize);
-               
-                if (crop.Channels() > 1)
-                   Cv2.CvtColor(crop, crop, ColorConversionCodes.BGR2GRAY);
-                OpenCvSharp.Rect rectan = new OpenCvSharp.Rect(205, 200, 700, 700);
-                //Cv2.Rectangle(crop, rectan, Scalar.White, 2);
-                
-                Mat thread_crop = new Mat(crop, rectan);
-                Cv2.NamedWindow("tempcrop", WindowFlags.Normal);
-                Cv2.ImShow("tempcrop", thread_crop);
-                template_matching(crop, temp_match);
-                //template_matching(thread_crop, temp_match);
-                resizeimg.CopyTo(thread);
-                //Cv2.NamedWindow("templete", WindowFlags.Normal);
-                //Cv2.ImShow("templete", resizeimg);
-                if (thread.Channels() > 1)
-                  Cv2.CvtColor(thread, thread, ColorConversionCodes.BGR2GRAY);
-              
-                OpenCvSharp.Rect thread_roi1 = new OpenCvSharp.Rect(50, 90, 33, 23);//48, 84, 33, 23
-                Cv2.Rectangle(thread, thread_roi1, Scalar.Black, -1);
-                OpenCvSharp.Rect final_rect = new OpenCvSharp.Rect(20, 23, 105, 80);//20,23,105,80
-                Cv2.Rectangle(thread, final_rect, Scalar.Green, 1);
-                thread = new Mat(thread, final_rect);
-                //Cv2.NamedWindow("mask", WindowFlags.Normal);
-                //Cv2.ImShow("mask", thread);
-                thread.CopyTo(thread_copy);
-                Cv2.Sobel(thread, thread, MatType.CV_8UC1, 0, 1, 1);
-                Cv2.Threshold(thread, thread, 120, 255, ThresholdTypes.Otsu);
-
-                //Cv2.NamedWindow("inrange", WindowFlags.Normal);
-                //Cv2.ImShow("inrange", thread);
-                pixelcount = Cv2.CountNonZero(thread);
-              
                 Cv2.FindContours(thread, out contour1, out hier1, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-                if (thread_copy.Channels() == 1)
-                   Cv2.CvtColor(thread_copy, thread_copy, ColorConversionCodes.GRAY2BGR);
+                if (resizeimg.Channels() == 1)
+                   Cv2.CvtColor(resizeimg, resizeimg, ColorConversionCodes.GRAY2BGR);
                 for (int i = 0; i < contour1.Length; i++)
                 {
                     rect3 = Cv2.BoundingRect(contour1[i]);
-                    if (Cv2.ContourArea(contour1[i]) > 15 && Cv2.ContourArea(contour1[i]) < 1000  )//60,500 20,1000
+                    if (Cv2.ContourArea(contour1[i]) > 10 && Cv2.ContourArea(contour1[i]) < 1000  )//60,500
                     {
-                        if (rect3.Width > 2 && rect3.Width < 90 && rect3.Height < 26 && rect3.Height>1)//20,90,26,3
+                        if (rect3.Width > 20 && rect3.Width < 90 && rect3.Height < 26 && rect3.Height>3)//10,300,20,3  10,300,26,3
                         {
-                            Cv2.DrawContours(thread_copy, contour1, i, Scalar.LimeGreen, 2);
+                            Cv2.DrawContours(resizeimg, contour1, i, Scalar.LimeGreen, 2);
                             threadcount++;
-                        }
+                       }
                     }
                 }
-
-                //Cv2.NamedWindow("templete1", WindowFlags.Normal);
-                //Cv2.ImShow("templete1", thread_copy);
+                Cv2.NamedWindow("templete1", WindowMode.FreeRatio);
+                Cv2.ImShow("templete1", resizeimg);
                 Cv2.ImWrite("thread" + ".bmp", resizeimg);
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
 
@@ -694,23 +635,23 @@ namespace Thread_Inspection
                 if (hole_crop.Channels() == 1)
                     Cv2.CvtColor(hole_crop,hole_crop, ColorConversionCodes.GRAY2BGR);
 
-                OpenCvSharp.Rect roi1 = new OpenCvSharp.Rect(47, 320, 180, 236);//47,340,180,220  47, 338, 180, 220
-                Cv2.Rectangle(hole_crop, roi1, Scalar.Green, 3);//3
+                OpenCvSharp.Rect roi1 = new OpenCvSharp.Rect(43, 340, 180, 220);//47,340,180,220
+                Cv2.Rectangle(hole_crop, roi1, Scalar.Green, 3);
                 OpenCvSharp.Point pnt1 = new OpenCvSharp.Point(roi1.X, roi1.Y);
                 Cv2.PutText(hole_crop, 1.ToString(), pnt1, HersheyFonts.HersheyPlain, 8, Scalar.Red, 5);
 
-                OpenCvSharp.Rect roi2 = new OpenCvSharp.Rect(430, 27, 200, 215);//370,25,200,200    //430,30,200,210
-                Cv2.Rectangle(hole_crop, roi2, Scalar.Green, 3);//3
+                OpenCvSharp.Rect roi2 = new OpenCvSharp.Rect(430, 30, 200, 210);//370,25,200,200    //430,30,200,200
+                Cv2.Rectangle(hole_crop, roi2, Scalar.Green, 3);
                 OpenCvSharp.Point pnt2 = new OpenCvSharp.Point(roi2.X - 80, roi2.Y + 80);
                 Cv2.PutText(hole_crop, 2.ToString(), pnt2, HersheyFonts.HersheyPlain, 8, Scalar.Red, 5);
 
-                OpenCvSharp.Rect roi3 = new OpenCvSharp.Rect(881, 320, 202, 250);//870,320,200,250    877, 320, 200, 250
-                Cv2.Rectangle(hole_crop, roi3, Scalar.Green, 3);//3
+                OpenCvSharp.Rect roi3 = new OpenCvSharp.Rect(877, 320, 195, 250);//870,320,200,250    //870,320,200,250
+                Cv2.Rectangle(hole_crop, roi3, Scalar.Green, 4);
                 OpenCvSharp.Point pnt3 = new OpenCvSharp.Point(roi3.X, roi3.Y);
                 Cv2.PutText(hole_crop, 3.ToString(), pnt3, HersheyFonts.HersheyPlain, 8, Scalar.Red, 5);
 
-                OpenCvSharp.Rect roi4 = new OpenCvSharp.Rect(550, 780, 185, 220);//580,800,200,200   550, 790, 170, 210   550, 800, 170, 200
-                Cv2.Rectangle(hole_crop, roi4, Scalar.Green, 3);//3
+                OpenCvSharp.Rect roi4 = new OpenCvSharp.Rect(550, 800, 170, 200);//580,800,200,200   //520,770,200,200   550, 800, 170, 200
+                Cv2.Rectangle(hole_crop, roi4, Scalar.Green, 3);
                 OpenCvSharp.Point pnt4 = new OpenCvSharp.Point(roi4.X, roi4.Y);
                 Cv2.PutText(hole_crop, 4.ToString(), pnt4, HersheyFonts.HersheyPlain, 8, Scalar.Red, 5);
 
@@ -722,119 +663,136 @@ namespace Thread_Inspection
                     if (a == 0)
                     {
                         Mat tempcrop = new Mat(crop1, roi1);
-                        Cv2.Threshold(tempcrop, tempcrop, 90, 255, ThresholdTypes.Otsu);//110
+                        if (Form3.start1 == true)
+                        {
+                            Cv2.AdaptiveThreshold(tempcrop, tempcrop, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 71, Form3.value1);//71,76
+                            Form3.start1 = false;
+                        }
+                        else
+                        {
+                          //Cv2.Threshold(tempcrop, tempcrop, 95, 255, ThresholdTypes.Binary);//100
+                           Cv2.AdaptiveThreshold(tempcrop, tempcrop, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 71, 56);//71,76
+                          
+                        }
                         Cv2.Dilate(tempcrop, tempcrop, element1, null, 1);//1
-                        Cv2.Erode(tempcrop, tempcrop, element, null, 4);//6
+                        Cv2.Erode(tempcrop, tempcrop, element, null, 6);//8
                         Cv2.FindContours(tempcrop, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-                        
+                        if (tempcrop.Channels() == 1)
+                           Cv2.CvtColor(tempcrop, tempcrop, ColorConversionCodes.GRAY2BGR);
                         for (int b = 0; b < contour.Length; b++)
                         {
                             rect1 = Cv2.BoundingRect(contour[b]);
-                            if (Cv2.ContourArea(contour[b]) > 800 && Cv2.ContourArea(contour[b]) < 3000)//300,4000
+                            if (Cv2.ContourArea(contour[b]) > 300 && Cv2.ContourArea(contour[b]) < 4000)//200,6000
                             {
-                                rect1 = Cv2.BoundingRect(contour[b]);
-                                Mat spot_img = new Mat(tempcrop, rect1);
-                                int white_pix = Cv2.CountNonZero(spot_img);
-                                int black_pix = spot_img.Width * spot_img.Height - white_pix;
                                 double aspectratio = Convert.ToDouble(rect1.Width) / Convert.ToDouble(rect1.Height);
-                                if (aspectratio >0.83 && aspectratio < 1.65 && black_pix>white_pix)  // 0.83,1.80  
+                                if (aspectratio >0.83 && aspectratio < 1.80)  //1.10 0.80  0.83,1.80
                                 {
-                                    //if (rect1.Height > 25 && rect1.Height < 250 & rect1.Width > 30  && rect1.Width < 200)//10,200,200,10//25,250,30,200
-                                    //{
+                                    if (rect1.Height > 25 && rect1.Height < 250 & rect1.Width > 30  && rect1.Width < 200)//10,200,200,10//25,250,30,200
+                                    {
                                         OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(rect1.X + roi1.X, rect1.Y + roi1.Y, rect1.Width, rect1.Height);
                                         Cv2.Rectangle(hole_crop, hole_rect, Scalar.LimeGreen, 5);
                                         Cv2.DrawContours(tempcrop, contour, b, Scalar.Blue, 3);
                                         Holecount++;
                                         Hole_absent = true;
                                         break;
-                                    //}
+                                    }
                                 }
 
                             }
                         }
                         if (!Hole_absent == true)
                         {
-                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(47, 320, 180, 236);
+                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(47, 340, 180, 220);
                             Cv2.Rectangle(hole_crop, hole_rect, Scalar.Red, 5);
                         }
                         Hole_absent = false;
-                        //Cv2.NamedWindow("color", WindowFlags.Normal);
-                        //Cv2.ImShow("color", tempcrop);
+                        Cv2.NamedWindow("color", WindowMode.FreeRatio);
+                        Cv2.ImShow("color", tempcrop);
                     }
 
                     if (a == 1)
                     {
-                        Mat tempcrop1 = new Mat(crop1, roi2);
-                        Cv2.AdaptiveThreshold(tempcrop1, tempcrop1, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary,89 , 58);//89,58
-                         Cv2.Erode(tempcrop1, tempcrop1, element1, null, 4);//6
-                        Cv2.FindContours(tempcrop1, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-                       
+                        Mat tempcrop = new Mat(crop1, roi2);
+                        if (Form3.start2 == true)
+                        {
+                            Cv2.AdaptiveThreshold(tempcrop, tempcrop, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 89, Form3.value2);//89,5
+                            Form3.start2 = false;
+                        }
+                        else
+                        {
+                            //Cv2.Threshold(tempcrop, tempcrop, 76, 255, ThresholdTypes.Binary);//75
+                            Cv2.AdaptiveThreshold(tempcrop, tempcrop, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary,89 , 58);//89,58
+                           
+                        }
+                        Cv2.Erode(tempcrop, tempcrop, element1, null, 6);//6
+                        Cv2.FindContours(tempcrop, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
+                        if (tempcrop.Channels() == 1)
+                           Cv2.CvtColor(tempcrop, tempcrop, ColorConversionCodes.GRAY2BGR);
                         for (int b = 0; b < contour.Length; b++)
                         {
-                            
-                            if (Cv2.ContourArea(contour[b]) > 500 && Cv2.ContourArea(contour[b]) < 4000)//  //600,12000
+                            rect1 = Cv2.BoundingRect(contour[b]);
+                            if (Cv2.ContourArea(contour[b]) > 600 && Cv2.ContourArea(contour[b]) < 12000)//100,6000  //600,12000
                             {
-                                rect1 = Cv2.BoundingRect(contour[b]);
-                                Mat spot_img = new Mat(tempcrop1, rect1);
-                                //Cv2.NamedWindow("con", WindowFlags.Normal);
-                                //Cv2.ImShow("con", spot_img);
-                                //Cv2.ImWrite("con1.bmp", spot_img);
-                                int white_pix = Cv2.CountNonZero(spot_img);
-                                int black_pix = spot_img.Width * spot_img.Height - white_pix+10;
                                 double aspectratio = Convert.ToDouble(rect1.Width) / Convert.ToDouble(rect1.Height);
-                                if (aspectratio < 1.55 && aspectratio > 0.80 /*&& black_pix > white_pix*/) //1.38 0.80  1.45,0.80
-                                {
+                                if (aspectratio < 1.45 && aspectratio > 0.80) //1.38 0.80  1.45,0.80
+
                                     if (rect1.Height > 25 && rect1.Height < 80 & rect1.Width < 80 && rect1.Width > 25)//22,80,80,25
                                     {
-                                        
                                         OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(rect1.X + roi2.X, rect1.Y + roi2.Y, rect1.Width, rect1.Height);
                                         Cv2.Rectangle(hole_crop, hole_rect, Scalar.LimeGreen, 5);
-                                        Cv2.DrawContours(tempcrop1, contour, b, Scalar.Blue, 3);
+                                        Cv2.DrawContours(tempcrop, contour, b, Scalar.Blue, 3);
                                         Holecount++;
                                         Hole_absent = true;
                                         break;
-                                   }
-                                }
+                                    }
                             }
 
                         }
                         if (!Hole_absent == true)
                         {
-                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(430, 27, 200, 215);
+                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(430, 30, 200, 210);
                             Cv2.Rectangle(hole_crop, hole_rect, Scalar.Red, 5);
                         }
                         Hole_absent = false;
-                        //Cv2.NamedWindow("color1", WindowFlags.Normal);
-                        //Cv2.ImShow("color1", tempcrop1);
+                        Cv2.NamedWindow("color1", WindowMode.AutoSize);
+                        Cv2.ImShow("color1", tempcrop);
                     }
                     if (a == 2)
                     {
                         Mat tempcrop = new Mat(crop1, roi3);
-                       
-                        Cv2.AdaptiveThreshold(tempcrop, tempcrop,255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 71, 19);
+                        if (Form3.start3 == true)
+                        {
+                            Cv2.Threshold(tempcrop, tempcrop, Form3.value3, 255, ThresholdTypes.Binary);
+                            Form3.start3 = false;
+                        }
+                        else
+                        {
+                            Cv2.Threshold(tempcrop, tempcrop, 75, 255, ThresholdTypes.Binary);//85
+                            
+                            //v2.Erode(tempcrop, tempcrop, element1, null, 9);//9
+                            //Cv2.Dilate(tempcrop, tempcrop, element, null, 1);
+                        }
                         Cv2.MorphologyEx(tempcrop, tempcrop, MorphTypes.Close, element);
                         Cv2.FindContours(tempcrop, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-                       
+                        if (tempcrop.Channels() == 1)
+                           Cv2.CvtColor(tempcrop, tempcrop, ColorConversionCodes.GRAY2BGR);
                         for (int b = 0; b < contour.Length; b++)
                         {
-                            if (Cv2.ContourArea(contour[b]) > 500 && Cv2.ContourArea(contour[b]) < 10000)//300,4000  300,6000
+                            rect1 = Cv2.BoundingRect(contour[b]);
+                            if (Cv2.ContourArea(contour[b]) > 300 && Cv2.ContourArea(contour[b]) < 6000)//300,4000  300,6000
                             {
-                                rect1 = Cv2.BoundingRect(contour[b]);
-                                Mat spot_img = new Mat(tempcrop, rect1);
-                                int white_pix = Cv2.CountNonZero(spot_img);
-                                int black_pix = spot_img.Width * spot_img.Height - white_pix;
                                 double aspectratio = Convert.ToDouble(rect1.Width) / Convert.ToDouble(rect1.Height);
-                                if (aspectratio < 1.55 && aspectratio > 0.75 && black_pix > white_pix /*|| white_pix < 2000 || black_pix > 500*/)//1.43 0.75
+                                if (aspectratio < 1.30 && aspectratio > 0.75)//1.26,0.85   1.30,0.75
                                 {
-                                    //if (rect1.Height > 28 && rect1.Height < 200 & rect1.Width < 300 && rect1.Width > 30)//30,200,300,30
-                                    //{
+                                    if (rect1.Height > 28 && rect1.Height < 200 & rect1.Width < 300 && rect1.Width > 30)//30,200,300,30
+                                    {
                                         OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(rect1.X + roi3.X, rect1.Y + roi3.Y, rect1.Width, rect1.Height);
                                         Cv2.Rectangle(hole_crop, hole_rect, Scalar.LimeGreen, 5);
                                         Cv2.DrawContours(tempcrop, contour, b, Scalar.Blue, 3);
                                         Holecount++;
                                         Hole_absent = true;
                                         break;
-                                   //}
+                                    }
 
                                 }
 
@@ -843,44 +801,51 @@ namespace Thread_Inspection
                         }
                         if (!Hole_absent == true)
                         {
-                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(881, 320, 202, 250);
+                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(875, 320, 195, 250);
                             Cv2.Rectangle(hole_crop, hole_rect, Scalar.Red, 5);
 
                         }
                         Hole_absent = false;
-                        //Cv2.NamedWindow("color2", WindowFlags.Normal);
-                        //Cv2.ImShow("color2", tempcrop);
+                        Cv2.NamedWindow("color2", WindowMode.AutoSize);
+                        Cv2.ImShow("color2", tempcrop);
                     }
                     if (a == 3)
                     {
                         Mat tempcrop = new Mat(crop1, roi4);
-                        Cv2.Threshold(tempcrop, tempcrop, 90, 255, ThresholdTypes.Otsu);//60//98
+                        if (Form3.start4 == true)
+                        {
+                            Cv2.Threshold(tempcrop, tempcrop, Form3.value4, 255, ThresholdTypes.Binary);
+                            Form3.start4 = false;
+                        }
+                        else
+                        {
+                            Cv2.Threshold(tempcrop, tempcrop, 90, 255, ThresholdTypes.Binary);//60//98
+                           
+                        }
                         Cv2.Dilate(tempcrop, tempcrop, element1, null, 1);//1
                         Cv2.AdaptiveThreshold(tempcrop, tempcrop, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 75, 171); //71,171
                         Cv2.Erode(tempcrop, tempcrop, element1, null, 3);//4
                         Cv2.FindContours(tempcrop, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
+                        if (tempcrop.Channels() == 1)
+                           Cv2.CvtColor(tempcrop, tempcrop, ColorConversionCodes.GRAY2BGR);
+                       
                         for (int b = 0; b < contour.Length; b++)
                         {
                             rect1 = Cv2.BoundingRect(contour[b]);
                             if (Cv2.ContourArea(contour[b])>1000 && Cv2.ContourArea(contour[b]) < 4000)//1000,4000
                             {
-                                rect1 = Cv2.BoundingRect(contour[b]);
-                                Mat spot_img = new Mat(tempcrop, rect1);
-
-                                int white_pix = Cv2.CountNonZero(spot_img);
-                                int black_pix = spot_img.Width * spot_img.Height - white_pix;
                                 double aspectratio = Convert.ToDouble(rect1.Width) / Convert.ToDouble(rect1.Height);
-                                if (aspectratio > 0.40 && aspectratio < 1.50 && black_pix>white_pix)//1.10 0.80 0.40,1.40
+                                if (aspectratio > 0.40 && aspectratio < 1.40)//1.10 0.80 0.40,1.40
                                 {
-                                    //if (rect1.Height > 30 && rect1.Height < 300 && rect1.Width >20 && rect1.Width < 200)//30,90,90,30  30,300,20,200
-                                    //{
+                                    if (rect1.Height > 30 && rect1.Height < 300 && rect1.Width >20 && rect1.Width < 200)//30,90,90,30  30,300,20,200
+                                    {
                                         OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(rect1.X + roi4.X, rect1.Y + roi4.Y, rect1.Width, rect1.Height);
                                         Cv2.Rectangle(hole_crop, hole_rect, Scalar.LimeGreen, 5);
                                         Cv2.DrawContours(tempcrop, contour, b, Scalar.Blue, 3);
                                         Holecount++;
                                         Hole_absent = true;
                                         break;
-                                    //}
+                                    }
                                 }
 
                             }
@@ -888,26 +853,88 @@ namespace Thread_Inspection
                         }
                         if (!Hole_absent == true)
                         {
-                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(550, 780, 185, 220);
+                            OpenCvSharp.Rect hole_rect = new OpenCvSharp.Rect(550, 800, 170, 200);
                             Cv2.Rectangle(hole_crop, hole_rect, Scalar.Red, 5);
 
                         }
                         Hole_absent = false;
-                        //Cv2.NamedWindow("color3", WindowFlags.Normal);
-                        //Cv2.ImShow("color3", tempcrop);
+                        Cv2.NamedWindow("color3", WindowMode.AutoSize);
+                        Cv2.ImShow("color3", tempcrop);
                     }
                     hole_crop.CopyTo(finalimg);
-                   
+                    //img_disp.Image = crop.ToBitmap();
                 }
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
 
         }
-       
+        private void Holes(Mat inimg)
+        {
+            try
+            {
+                Holecount = 0;
+                Mat crop = new Mat();
+                OpenCvSharp.Point[][] contour;
+                HierarchyIndex[] hier;
+                OpenCvSharp.Rect rect1 = new OpenCvSharp.Rect();
+                OpenCvSharp.Size ksize = new OpenCvSharp.Size(3, 3);
+                OpenCvSharp.Size kksize = new OpenCvSharp.Size(5, 5);
+                Mat element = Cv2.GetStructuringElement(MorphShapes.Cross, ksize);
+                Mat element1 = Cv2.GetStructuringElement(MorphShapes.Cross, kksize);
+                inimg.CopyTo(crop);
+                if (crop.Channels() > 1)
+                    Cv2.CvtColor(crop, crop, ColorConversionCodes.BGR2GRAY);
+                Cv2.GaussianBlur(crop, crop, kksize, 0, 0);
+                Cv2.Threshold(crop, crop, 120, 255, ThresholdTypes.Binary);//130,255
+                Cv2.AdaptiveThreshold(crop, crop, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 67, 17);//67,17
+                Cv2.MorphologyEx(crop, crop, MorphTypes.Close, element);
+
+               
+
+                Cv2.Erode(crop, crop, element1, null, 6);
+
+                OpenCvSharp.Point pnt = new OpenCvSharp.Point(crop.Width / 2, crop.Height / 2 + 60);//50
+
+                Cv2.Circle(crop, pnt, 280, Scalar.White, -1);
+                
+                List<int> list1 = new List<int>();
+                Cv2.FindContours(crop, out contour, out hier, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
+                if (crop.Channels() == 1)
+                {
+                    Cv2.CvtColor(crop, crop, ColorConversionCodes.GRAY2BGR);
+                }
+                for (int a = 0; a < contour.Length; a++)
+                {
+
+                    rect1 = Cv2.BoundingRect(contour[a]);
+
+                    if (Cv2.ContourArea(contour[a]) > 600 && Cv2.ContourArea(contour[a]) < 3000)  /*&& rect1.Height > 5 && rect1.Width > 30*/ /*&& rect1.Width > 30*/   //600,2500,20,70
+                    {
+                        double aspectratio = Convert.ToDouble(rect1.Width) / Convert.ToDouble(rect1.Height);
+                        if (aspectratio > 1.02)
+                        {
+                            if (rect1.Height > 38 && rect1.Height < 100 && rect1.Width < 100 && rect1.Width > 38)//45,110,110,45
+                            {
+                                Cv2.DrawContours(crop, contour, a, Scalar.Blue, 3);
+                                Holecount++;
+                            }
+                        }
+                    }
+                }
+                Cv2.NamedWindow("color", WindowMode.FreeRatio);
+                Cv2.ImShow("color", crop);
+            }
+            catch (Exception Ex)
+            {
+                MessageBox.Show(Ex.Message.ToString());
+                log.Error("Error Message: " + Ex.Message.ToString(), Ex);
+            }
+
+        }
        
         private void template_matching(Mat template, Mat n)
         {
@@ -925,7 +952,8 @@ namespace Thread_Inspection
                 n.CopyTo(train);
                 Cv2.GaussianBlur(master, master, kksize,0,0);
                 Mat result1 = new Mat();
-                
+                double minVal; double maxVal;
+                OpenCvSharp.Point minLoc, maxLoc;
                 int result1_cols = master.Cols - train.Cols + 1;
                 int result1_rows = master.Rows - train.Rows + 1;
                 result1.Create(result1_cols, result1_rows, MatType.CV_32FC1);
@@ -934,9 +962,8 @@ namespace Thread_Inspection
                 matchLoc = maxLoc;
                 min = minVal * 100;
                 max = maxVal * 100;
-                //Cv2.NamedWindow("train", WindowFlags.Normal);
-                //Cv2.ImShow("train", train);
-               
+                Cv2.NamedWindow("train", WindowMode.FreeRatio);
+                Cv2.ImShow("train", train);
                 res_loc = new OpenCvSharp.Point(matchLoc.X + train.Cols, matchLoc.Y + train.Rows);
                 int mxi = Convert.ToInt32(matchLoc.X);
                 int myi = Convert.ToInt32(matchLoc.Y);
@@ -949,11 +976,11 @@ namespace Thread_Inspection
                 rect2 = new OpenCvSharp.Rect(x, y, cro.Width, cro.Height);
                 match_output = new Mat(master, rect2);
                 match_output.CopyTo(resizeimg);
-              
+                //Cv2.ImWrite("resulttm" + ".bmp", resizeimg);
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
         }
@@ -975,37 +1002,45 @@ namespace Thread_Inspection
             
             try
             {
-               
+                if (Form3.close == true)
+                {
+                    timer1.Enabled = false;
+                    Form3.close = false;
+                }
                 bool[] data = plcmodule.ReadDiscreteInputs(1024, 1);
                 draw = true;
                 if (data[0] == true)
                 {
-                    sw.Reset();
-                    sw1.Reset();
-                    textBox1.Text = "0";
-                    textBox2.Text = "0";
-
-                    sw1.Start();
-                    plcmodule.WriteSingleCoil(1283, false);
+                    plcmodule.WriteSingleCoil(1280, false);
+                    plcmodule.WriteSingleCoil(1280, false);
+                    // if (!capture.IsOpened())
+                    //{
+                    //capture.Open(0);
+                    //}
+                    //capture.Focus = 14;
                     Thread.Sleep(2000);
-                   for(int i=0;i<2;i++)
-                   { 
-                      capture.Read(Inputimg);
-                   }
+                    capture.FrameWidth = 1920;
+                    capture.FrameHeight = 1080;
+                    //for (int i = 0; i < 5; i++)
+                    //{
+                    //    if (capture.IsOpened())
+                    //    {
+                            capture.Read(Inputimg);
+                    //    }
+                    //}
                     framecount++;
                     Cv2.CvtColor(Inputimg, outimg, ColorConversionCodes.BGR2GRAY);
+                   
+                    img_disp.Image = outimg.ToBitmap();
+                    img_disp.SizeMode = PictureBoxSizeMode.StretchImage;
                     frame_conut.Text = framecount.ToString();
-                    sw1.Stop();
-                    textBox2.Text = sw1.ElapsedMilliseconds.ToString();
-                    //Cv2.ImWrite("Empty" + ".bmp", outimg);
                     Process_image();
-
                 }
             }
             catch (Exception Ex)
             {
-                //MessageBox.Show("image is not good");
-                //MessageBox.Show(Ex.Message.ToString());
+                MessageBox.Show("image is not good");
+                MessageBox.Show(Ex.Message.ToString());
                 log.Error("Error Message: " + Ex.Message.ToString(), Ex);
             }
         }
@@ -1105,7 +1140,9 @@ namespace Thread_Inspection
                 files = folder.GetFiles();
                 string path = files[click++].FullName;
                 outimg = Cv2.ImRead(path);
+
                 Process_image();
+
             }
         }
 

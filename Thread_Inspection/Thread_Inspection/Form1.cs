@@ -26,7 +26,7 @@ namespace Thread_Inspection
         private static readonly log4net.ILog log =
         log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
        
-        VideoCapture capture = new VideoCapture(1, VideoCaptureAPIs.DSHOW);
+        VideoCapture capture = new VideoCapture(0, VideoCaptureAPIs.DSHOW);
         ModbusClient plcmodule;
         Stopwatch sw = new Stopwatch();
         Stopwatch sw1 = new Stopwatch();
