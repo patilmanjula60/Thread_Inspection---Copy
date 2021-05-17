@@ -281,6 +281,7 @@ namespace Thread_Inspection
             try
             {
                 img_disp.Image = null;
+                
                 openFileDialog1.ShowDialog();
                 if (openFileDialog1.FileName == "")
                 {
